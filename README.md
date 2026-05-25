@@ -1,49 +1,44 @@
-# FastAPI ML Inference Service
+# Production FastAPI ML Inference Service
 
-A production-ready, containerized FastAPI service for Machine Learning inference, demonstrating multi-stage Docker builds, non-root execution, health probing, and optional GPU passthrough.
+A rigorously engineered, production-ready FastAPI service for Machine Learning inference. This repository demonstrates the evolution from a basic script to a globally scalable, containerized architecture.
 
-## Architecture Highlights
-- **Multi-stage Dockerfile:** Optimized build yielding minimal runtime footprints.
-- **Security:** Enforced `appuser` non-root execution (Principle of Least Privilege).
-- **Resilience:** Native Python healthchecks and Compose auto-restart policies.
-- **Observability:** Centralized logging and Prometheus sidecar placeholder.
+## 🏗️ System Architecture
+- **API Layer:** FastAPI with strict Pydantic data contracts.
+- **Containerization:** Multi-stage Docker build utilizing `python:3.11-slim`.
+- **Security Context:** Enforced Principle of Least Privilege (Non-root `appuser` execution).
+- **Resilience:** Native Python `HEALTHCHECK` probes and Compose auto-restart policies.
+- **Hardware Abstraction:** Layered Compose architecture for optional NVIDIA GPU passthrough.
+- **Continuous Integration:** Automated GitHub Actions pipeline for static analysis, type-safety, and unit testing.
 
-## Deployment Instructions
+## 🚀 Developer Experience (DX)
+We use a `Makefile` to simplify operations.
 
-### Standard CPU Deployment (Default)
+**Local Development:**
 ```bash
-# Bring up the API and Prometheus placeholder in the background
-docker compose up -d --build
-
-# Verify container health state
-docker inspect --format="{{json .State.Health.Status}}" ml-inference-api
-
-# Check the health endpoint directly
-curl http://localhost:8000/health
-
-# Make a test prediction
-curl -X POST http://localhost:8000/predict \
-  -H "Content-Type: application/json" \
-  -d '{"feature1": 10.0, "feature2": 20.0}'
-
-# Tear down
-docker compose down
+make install    # Install all dependencies
+make lint       # Run Ruff and Mypy
+make test       # Run Pytest evaluation suite
+make run        # Start the Uvicorn server locally
 ```
 
-### GPU-Accelerated Deployment (Optional)
-*Requires the NVIDIA Container Toolkit on the host.*
-
+**Docker Orchestration:**
 ```bash
-# Bring up the cluster using the GPU override configuration
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
-
-# Alternatively, via pure Docker:
-docker run --gpus all -d -p 8000:8000 fastapi-ml-optimized:latest
+make docker-build # Build the optimized image
+make docker-up    # Spin up the cluster in the background
+make clean        # Tear down cluster, volumes, and cache files
 ```
 
-## Endpoints
-- `GET /health` — Verifies container liveness.
+## 🔌 API Endpoints
+
+- `GET /health` — Verifies container liveness. Returns `{"status": "healthy"}`.
 - `POST /predict` — Accepts inference requests.
+  - Payload: `{"feature1": float, "feature2": float}`
+  - Response: `{"prediction": float}`
 
-## Storage
-Models: ML model binaries are persisted in the Docker named volume `ml_model_volume`.
+## 🖥️ GPU-Accelerated Deployment (Optional)
+
+If your host supports the NVIDIA Container Toolkit, you can bypass the standard CPU deployment and inject hardware acceleration:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+```
