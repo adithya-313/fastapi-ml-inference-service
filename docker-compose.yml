@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ml-inference-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Inject environment variables for configuration
+      - MODEL_DIR=/app/models
+      - LOG_LEVEL=INFO
+    volumes:
+      # Mount a persistent named volume for ML model binaries
+      - model_data:/app/models
+    restart: unless-stopped
+
+  prometheus:
+    # Placeholder service for metrics scraping
+    image: prom/prometheus:latest
+    container_name: prometheus-placeholder
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+volumes:
+  # Define the named volume managed by Docker
+  model_data:
+    name: ml_model_volume

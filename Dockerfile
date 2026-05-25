@@ -50,3 +50,10 @@ EXPOSE 8000
 
 # Start the application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# =============================================================================
+# HEALTH CHECK
+# =============================================================================
+# Tell Docker how to test that the application is healthy
+HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
