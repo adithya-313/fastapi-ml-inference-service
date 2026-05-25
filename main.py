@@ -4,9 +4,6 @@
 # Import FastAPI to create our web application
 from fastapi import FastAPI
 
-# Import HTTPException to return custom error responses
-from fastapi import HTTPException
-
 # Import BaseModel from Pydantic to define request/response data schemas
 from pydantic import BaseModel
 
