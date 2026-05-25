@@ -1,48 +1,49 @@
 # FastAPI ML Inference Service
 
-A beginner-friendly FastAPI service for ML inference with Docker containerization.
+A production-ready, containerized FastAPI service for Machine Learning inference, demonstrating multi-stage Docker builds, non-root execution, health probing, and optional GPU passthrough.
 
-## Quick Start
+## Architecture Highlights
+- **Multi-stage Dockerfile:** Optimized build yielding minimal runtime footprints.
+- **Security:** Enforced `appuser` non-root execution (Principle of Least Privilege).
+- **Resilience:** Native Python healthchecks and Compose auto-restart policies.
+- **Observability:** Centralized logging and Prometheus sidecar placeholder.
 
-### Build and Run with Docker
+## Deployment Instructions
 
+### Standard CPU Deployment (Default)
 ```bash
-# Build the optimized multi-stage image
-docker build -t fastapi-ml-optimized:latest .
+# Bring up the API and Prometheus placeholder in the background
+docker compose up -d --build
 
-# Run the container
-docker run -d -p 8000:8000 --name ml-api fastapi-ml-optimized:latest
+# Verify container health state
+docker inspect --format="{{json .State.Health.Status}}" ml-inference-api
 
-# Verify health
+# Check the health endpoint directly
 curl http://localhost:8000/health
 
-# Make a prediction
+# Make a test prediction
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
   -d '{"feature1": 10.0, "feature2": 20.0}'
 
-# Stop and remove
-docker stop ml-api && docker rm ml-api
+# Tear down
+docker compose down
 ```
 
-### Run Locally (without Docker)
+### GPU-Accelerated Deployment (Optional)
+*Requires the NVIDIA Container Toolkit on the host.*
 
 ```bash
-python -m venv venv
-.\venv\Scripts\pip install -r requirements.txt
-.\venv\Scripts\python main.py
+# Bring up the cluster using the GPU override configuration
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+
+# Alternatively, via pure Docker:
+docker run --gpus all -d -p 8000:8000 fastapi-ml-optimized:latest
 ```
 
 ## Endpoints
+- `GET /health` — Verifies container liveness.
+- `POST /predict` — Accepts inference requests.
 
-- `GET /health` — Returns `{"status": "healthy"}`
-- `POST /predict` — Accepts `{"feature1": float, "feature2": float}`, returns `{"prediction": float}`
-
-## Image Size Comparison
-
-| Image | Size (bytes) |
-|---|---|
-| `fastapi-ml-basic` (single-stage) | 54,621,222 |
-| `fastapi-ml-optimized` (multi-stage + non-root) | 58,258,015 |
-
-The multi-stage build isolates dependencies in a virtual environment and enforces non-root execution for improved security. The slight size increase is due to the bundled venv structure — significant savings appear when compiling native extensions (e.g., numpy, scikit-learn) where build tools can be discarded entirely in the runtime stage.
+## Storage
+Models: ML model binaries are persisted in the Docker named volume `ml_model_volume`.

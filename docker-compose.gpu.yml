@@ -1,0 +1,18 @@
+version: '3.8'
+
+# =============================================================================
+# GPU OVERRIDE CONFIGURATION
+# =============================================================================
+# This file extends the base docker-compose.yml to inject hardware acceleration.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+
+services:
+  api:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            # Request all available NVIDIA GPUs on the host machine
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
