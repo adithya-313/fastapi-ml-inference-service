@@ -52,3 +52,5 @@ We transformed a standard ML script into a highly optimized, production-ready mi
 | **Security** | Root Execution (High Risk) | **`appuser`** (Least Privilege) | **Hardened** |
 | **Resilience** | Manual Restarts | **Auto-healing** (Native Probes) | **Zero-touch recovery** |
 | **Hardware** | CPU Bottlenecked | **GPU Passthrough** Ready | **10x-50x Inference Speed** |
+
+> ⚠️ **Engineering Note on Benchmarks:** > The footprint, security, and resilience metrics are empirical facts of this repository's current state. The hardware speedup metric represents the **architectural capacity** unlocked by the GPU passthrough when utilizing tensor-optimized frameworks (PyTorch/TensorFlow). The current `/predict` endpoint contains a mock CPU-bound calculation to serve as a structural placeholder.
