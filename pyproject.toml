@@ -6,3 +6,9 @@ target-version = "py311"
 python_version = "3.11"
 strict = true
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+# Force pytest to add the project root to sys.path
+pythonpath = [
+    "."
+]
