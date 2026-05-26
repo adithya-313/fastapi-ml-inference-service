@@ -10,7 +10,7 @@ A rigorously engineered, containerized FastAPI microservice for Machine Learning
 * **Resilience:** Zero-dependency cluster healing. Utilizes native Python `HEALTHCHECK` probes to prevent reliance on external binaries like `curl`.
 * **Continuous Integration:** Automated GitHub Actions pipeline enforcing static analysis (Ruff), strict type-safety (Mypy), and unit testing (Pytest).
 
-## 📊 Day-2 Operations & Empirical Footprint
+## Operations & Empirical Footprint
 
 Integrating a functional `scikit-learn` model fundamentally alters the physics of the container due to heavy C-extensions (`numpy`, `scipy`). 
 
