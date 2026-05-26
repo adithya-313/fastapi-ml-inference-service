@@ -4,6 +4,9 @@
 # Import FastAPI to create our web application
 from fastapi import FastAPI
 
+# Import HTTPException to return structured error responses
+from fastapi import HTTPException
+
 # Import BaseModel from Pydantic to define request/response data schemas
 from pydantic import BaseModel
 
@@ -13,27 +16,38 @@ import logging
 # Import uvicorn to run the server
 import uvicorn
 
+# Import joblib to load the trained ML model from disk
+import joblib
+
+# Import numpy to format input data for scikit-learn
+import numpy as np
+
+# Import asynccontextmanager to handle app startup/shutdown lifespan
+from contextlib import asynccontextmanager
+
+# Import AsyncGenerator to annotate the lifespan return type
+from collections.abc import AsyncGenerator
+
 
 # =============================================================================
 # LOGGING SETUP
 # =============================================================================
-# Configure logging so we can see timestamped messages in the console
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
-# Create a logger instance for this module
 logger = logging.getLogger(__name__)
 
 
 # =============================================================================
 # DATA MODELS
 # =============================================================================
+
 # Define the shape of data we expect from the client when they call /predict
 class InferenceRequest(BaseModel):
     """
-    This model tells FastAPI exactly what fields to expect in the request body.
+    Input schema for prediction requests.
     - feature1: a floating-point number (required)
     - feature2: a floating-point number (required)
     """
@@ -44,7 +58,7 @@ class InferenceRequest(BaseModel):
 # Define the shape of data we will send back to the client
 class InferenceResponse(BaseModel):
     """
-    This model ensures the response always has a consistent structure.
+    Output schema for prediction responses.
     - prediction: the result our model computed
     """
     prediction: float
@@ -59,61 +73,126 @@ class HealthResponse(BaseModel):
 
 
 # =============================================================================
+# APPLICATION LIFESPAN (Startup / Shutdown)
+# =============================================================================
+# The lifespan context manager runs code BEFORE the app accepts requests
+# (on startup) and AFTER the app stops (on shutdown).
+# This is where we load the trained ML model into memory.
+
+# Global variable to hold the loaded model so all endpoints can access it
+model = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """
+    STEP 1: Load the trained model from disk before the app starts.
+    STEP 2: Yield control to the application so it can handle requests.
+    STEP 3: Clean up resources after the application shuts down.
+    """
+    # Allow the global model variable to be modified inside this function
+    global model
+
+    # --- STARTUP PHASE ---
+    # Attempt to load the serialized model from the models/ directory
+    try:
+        # LOGGING: Inform the operator that model loading is starting
+        logger.info("Loading ML model from models/model.joblib...")
+        # Load the model file that was saved by train.py
+        model = joblib.load("models/model.joblib")
+        # LOGGING: Confirm the model loaded successfully
+        logger.info("ML model loaded successfully")
+    except Exception as e:
+        # ERROR HANDLING: If the model file is missing or corrupt,
+        # log the error and set model to None so /predict can respond gracefully
+        logger.error("Failed to load ML model: %s", e)
+        model = None
+
+    # Yield control — the application runs here
+    yield
+
+    # --- SHUTDOWN PHASE ---
+    # LOGGING: Inform the operator that the application is shutting down
+    logger.info("Application shutting down. Model reference released.")
+
+
+# =============================================================================
 # APP INITIALIZATION
 # =============================================================================
-# Create the FastAPI application instance
+# Create the FastAPI application instance with the lifespan handler
 app = FastAPI(
     title="ML Inference Service",
-    description="A beginner-friendly API for making predictions",
-    version="1.0.0",
+    description="A beginner-friendly API for making predictions with a real trained model",
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
 
 # =============================================================================
 # ENDPOINTS
 # =============================================================================
+
 # Health-check endpoint — lets clients know the service is running
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
     """
     Return {"status": "healthy"} to confirm the service is alive.
-    This is the first endpoint a client should call to verify connectivity.
     """
-    # Log that someone hit this endpoint (observability)
+    # LOGGING: Record that this endpoint was called (observability)
     logger.info("Health check endpoint was called")
-
-    # Build and return the response
     return HealthResponse(status="healthy")
 
 
-# Prediction endpoint — accepts features and returns a mock prediction
+# Prediction endpoint — accepts features and returns a real model prediction
 @app.post("/predict", response_model=InferenceResponse)
 async def predict(request_body: InferenceRequest) -> InferenceResponse:
     """
     Accept an InferenceRequest containing feature1 and feature2,
-    then return a mock prediction value.
-    In a real service this is where you would run your ML model.
+    then run the trained ML model and return the prediction.
     """
-    # Log the incoming request for observability and debugging
+    # LOGGING: Record the incoming features for observability and debugging
     logger.info(
         "Prediction endpoint called with feature1=%s, feature2=%s",
         request_body.feature1,
         request_body.feature2,
     )
 
-    # --- Mock model logic ---
-    # Replace this block with your actual ML model inference code.
-    # For now we simply compute: prediction = feature1 * 0.5 + feature2 * 0.5
-    result: float = (request_body.feature1 * 0.5) + (request_body.feature2 * 0.5)
-    # ------------------------
+    # STEP 1: Verify that the model was loaded successfully during startup
+    if model is None:
+        # ERROR HANDLING: If the model failed to load, return a 503 error
+        logger.error("Prediction request rejected: model is not loaded")
+        raise HTTPException(
+            status_code=503,
+            detail="ML model is not available. Please try again later.",
+        )
+
+    # STEP 2: Convert the incoming features into a 2D numpy array
+    # scikit-learn expects a 2D array where each row is one sample
+    input_array = np.array([[request_body.feature1, request_body.feature2]])
+
+    # STEP 3: Run the model's predict method inside a try/except block
+    try:
+        # Execute the prediction
+        result = model.predict(input_array)
+        # Extract the single scalar value from the result array
+        prediction_value: float = float(result[0])
+    except Exception as e:
+        # ERROR HANDLING: If prediction fails, log and return a 500 error
+        logger.error("Model prediction failed: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail="Prediction computation failed.",
+        )
+
+    # LOGGING: Record the outgoing prediction for observability
+    logger.info("Prediction result: %s", prediction_value)
 
     # Build and return the response
-    return InferenceResponse(prediction=result)
+    return InferenceResponse(prediction=prediction_value)
 
 
 # =============================================================================
 # ENTRY POINT (for running directly with `python main.py`)
 # =============================================================================
-# When this file is executed directly, start the Uvicorn development server
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

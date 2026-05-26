@@ -11,14 +11,16 @@ def test_health_check_evaluation():
 
 
 def test_predict_valid_evaluation():
-    payload = {"feature1": 10.0, "feature2": 20.0}
-    response = client.post("/predict", json=payload)
-    assert response.status_code == 200
-    # Evaluates the mock logic: (10.0 * 0.5) + (20.0 * 0.5) = 15.0
-    assert response.json() == {"prediction": 15.0}
+    # Use context manager to trigger the lifespan startup (model load)
+    with TestClient(app) as client:
+        payload = {"feature1": 10.0, "feature2": 20.0}
+        response = client.post("/predict", json=payload)
+        assert response.status_code == 200
+        # Model is trained on y = (x1 * 2.0) + (x2 * 3.0)
+        # For [10.0, 20.0]: (10 * 2) + (20 * 3) = 20 + 60 = 80
+        assert response.json() == {"prediction": 80.0}
 
 
 def test_predict_invalid_schema_evaluation():
-    payload = {"feature1": "invalid_string"}
-    response = client.post("/predict", json=payload)
+    response = client.post("/predict", json={"feature1": "invalid_string"})
     assert response.status_code == 422  # Pydantic validation rejection
