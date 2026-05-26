@@ -53,4 +53,19 @@ We transformed a standard ML script into a highly optimized, production-ready mi
 | **Resilience** | Manual Restarts | **Auto-healing** (Native Probes) | **Zero-touch recovery** |
 | **Hardware** | CPU Bottlenecked | **GPU Passthrough** Ready | **10x-50x Inference Speed** |
 
-> ⚠️ **Engineering Note on Benchmarks:** > The footprint, security, and resilience metrics are empirical facts of this repository's current state. The hardware speedup metric represents the **architectural capacity** unlocked by the GPU passthrough when utilizing tensor-optimized frameworks (PyTorch/TensorFlow). The current `/predict` endpoint contains a mock CPU-bound calculation to serve as a structural placeholder.
+> ⚠️ **Engineering Note on Benchmarks:** > The footprint, security, and resilience metrics are empirical facts of this repository's current state. The hardware speedup metric represents the **architectural capacity** unlocked by the GPU passthrough when utilizing tensor-optimized frameworks (PyTorch/TensorFlow).
+
+## 📊 Day-2 Architectural ROI & Metrics (Phase 4 Evaluation)
+
+The integration of a functional `scikit-learn` model transitioned the architecture from a static mock to a production-grade inference container.
+
+| Metric | Naive Architecture (Global Scope + Full OS) | Current Architecture (Lifespan + Debian Slim) | Architectural Improvement |
+| :--- | :--- | :--- | :--- |
+| **Container Footprint** | ~1.8 GB to 2.2 GB | **785.0 MB** | **~60% Reduction** (Optimal for C-extensions) |
+| **Boot Resilience** | Model loads on first request | **ASGI Lifespan** (Fails fast before port binds) | **Deterministic Startup** |
+| **Security Boundary** | Root Execution | **Non-root `appuser`** | **Least Privilege Hardened** |
+| **Cluster Healing** | External HTTP / `curl` dependency | **Native Python Liveness Probe** | **Zero-dependency Recovery** |
+
+**Architectural Tradeoffs:**
+* **Footprint Floor:** 785MB is the stable floor for Debian-slim + `scipy`/`numpy` wheels.
+* **GPU Utilization:** While the infrastructure is GPU-ready via passthrough, the current `scikit-learn` model executes strictly on CPU. GPU acceleration is reserved for future tensor-based model integrations.
